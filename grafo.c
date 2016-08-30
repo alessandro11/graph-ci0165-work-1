@@ -80,6 +80,59 @@ int remove_no(struct lista *l, struct no *rno, int destroi(void *));
 //______________________________________________________________________________
 
 
+
+
+/*
+ * Meus includes
+ */
+#include <graphviz/cgraph.h>
+#define _XOPEN_SOURCE
+#include <string.h>
+
+typedef unsigned int uint;
+typedef long int lint;
+typedef unsigned short ushort;
+typedef int bool;
+
+#ifndef TRUE
+#define TRUE            1
+#endif
+
+#ifndef FALSE
+#define FALSE           0
+#endif
+
+#ifndef NULL
+#define NULL			0
+#endif
+
+#define ERRO(fmt, ...)       (fprintf(stderr, (fmt), ## __VA_ARGS__))
+
+struct grafo {
+	uint 	nvertices;
+	uint 	narestas;
+	int		direcionado;
+	int		ponderado;
+	char*	nome;
+	lista	vertices;
+};
+
+struct vertice {
+	char*	nome;
+	lista	vizinhos_esq;
+	lista	vizinhos_dir;
+};
+typedef struct vertice* vertice;
+
+struct aresta {
+	char*	nome;
+	vertice	origem;
+	vertice	destino;
+};
+typedef struct aresta* aresta;
+
+
+
 //------------------------------------------------------------------------------
 // devolve o nome do grafo g
 char *nome_grafo(grafo g) {
@@ -87,17 +140,17 @@ char *nome_grafo(grafo g) {
 }
 
 //------------------------------------------------------------------------------
-// devolve 1, se g é direcionado,
+// devolve 1, se g tem pesos nas arestas/arcos,
 //      ou 0, caso contrário
-int direcionado(grafo g) {
-	return 0;
+int ponderado(grafo g) {
+	return g->ponderado;
 }
 
 //------------------------------------------------------------------------------
 // devolve 1, se g tem pesos nas arestas/arcos,
 //      ou 0, caso contrário
-int ponderado(grafo g) {
-	return 0;
+int direcionado(grafo g) {
+	return g->direcionado;
 }
 
 //------------------------------------------------------------------------------
@@ -275,61 +328,31 @@ int remove_no(struct lista *l, struct no *rno, int destroi(void *)) {
  * Meu código começa aqui.
  *******************************************************************************
  */
-
-#include <graphviz/cgraph.h>
-#define _XOPEN_SOURCE
-#include <string.h>
-
-typedef unsigned int uint;
-typedef long int lint;
-typedef unsigned short ushort;
-typedef int bool;
-
-#ifndef TRUE
-#define TRUE            1
-#endif
-
-#ifndef FALSE
-#define FALSE           0
-#endif
-
-#ifndef NULL
-#define NULL			0
-#endif
-
-#define ERRO(fmt, ...)       (fprintf(stderr, (fmt), ## __VA_ARGS__))
-
-struct grafo {
-	uint 	nvertices;
-	uint 	narestas;
-	bool	ponderado;
-	int		padding;
-	char*	nome;
-	lista	vertices;
-};
-
-struct vertice {
-	char*	nome;
-	lista	vizinhos_esq;
-	lista	vizinhos_dir;
-};
-typedef struct vertice* vertice;
-
-struct aresta {
-	char*	nome;
-	vertice	origem;
-	vertice	destino;
-};
-typedef struct aresta* aresta;
-
-grafo* alloc_grafo(void);
-char* str_dup(const char* str);
+/*
+ * Protótipos
+ */
+void 	obtenha_arcos(Agraph_t*, Agnode_t*, grafo);
+void 	obtenha_arestas(Agraph_t*, Agnode_t*, grafo);
+void 	constroi_grafo(Agraph_t*, grafo);
+grafo	alloc_grafo(void);
+vertice alloc_vertice(const char*);
+char* 	str_dup(const char*);
 
 
-
-grafo* alloc_grafo(void) {
-	grafo* g = (grafo*)calloc(1, sizeof(struct grafo));
+grafo alloc_grafo(void) {
+	grafo g = (grafo)calloc(1, sizeof(struct grafo));
 	return g;
+}
+
+vertice alloc_vertice(const char* name) {
+	vertice v = (vertice)calloc(1, sizeof(struct vertice));
+	if( v ) {
+		v->nome = str_dup(name);
+		v->vizinhos_esq = constroi_lista();
+		v->vizinhos_dir = constroi_lista();
+	}
+
+	return v;
 }
 
 char* str_dup(const char* str) {
@@ -368,37 +391,33 @@ grafo le_grafo(FILE *input) {
     }
 
     g->nome = str_dup(agnameof(Ag_g));
-    g->ponderado = agisdirected(Ag_g);
+    g->direcionado = agisdirected(Ag_g);
     g->nvertices= (uint)agnnodes(Ag_g);
     g->narestas = (uint)agnedges(Ag_g);
     g->vertices = constroi_lista();
     constroi_grafo(Ag_g, g);
-    /*
-    for( Ag_v=agfstnode(Ag_g); Ag_v; Ag_v=agnxtnode(Ag_g, Ag_v) ) {
-        v = (vertice)mymalloc(sizeof(struct vertice));
-        memset(v, 0, sizeof(struct vertice));
-        v->v_nome = strdup(agnameof(Ag_v));
-        v->v_lbl  = (int*)mymalloc(sizeof(int) * g->g_nvertices);
-                memset(v->v_lbl, 0, sizeof(int) * g->g_nvertices);
-        v->v_neighborhood_in = constroi_lista();
-        v->v_neighborhood_out = constroi_lista();
-        // Insert vertex to the list of vertexes in the graph list.
-        if( !insere_lista(v, g->g_vertices) ) exit(EXIT_FAILURE);
-    }
 
-    BuildList build_list[2];
-    build_list[0] = BuildListOfEdges;
-    build_list[1] = BuildListOfArrows;
-    for( Ag_v=agfstnode(Ag_g); Ag_v; Ag_v=agnxtnode(Ag_g, Ag_v) )
-        build_list[g->g_tipo](g, Ag_g, Ag_v, agnameof(Ag_v));
-    */
     agclose(Ag_g);
     return g;
 }
 
-void constroi_grafo(Agraph_t* ag, grafo g) {
-	for( Agnode_t* v=agfstnode(ag); v; v=agnxtnode(ag, v) ) {
-		ver = alloc_vertice(agnameof(v));
+void obtenha_arcos(Agraph_t* ag, Agnode_t* v, grafo g) {
 
+}
+
+void obtenha_arestas(Agraph_t* ag, Agnode_t* v, grafo g) {
+
+}
+
+void constroi_grafo(Agraph_t* ag, grafo g) {
+	Agnode_t*	n;
+	vertice		v;
+
+	for( n=agfstnode(ag); n; n=agnxtnode(ag, n) ) {
+		v = alloc_vertice(agnameof(v));
+		if( g->direcionado )
+			obtenha_arcos(ag, n, g);
+		else
+			obtenha_arestas(ag, n, g);
 	}
 }
