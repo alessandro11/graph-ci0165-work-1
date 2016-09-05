@@ -55,4 +55,9 @@ teste : teste.o grafo.o
 
 #------------------------------------------------------------------------------
 clean :
-	$(RM) exemplo teste *.o
+	$(RM) -rf exemplo teste *.o ae11 *.tar.gz
+
+dist:
+	-@mkdir --parents ae11
+	@cp grafo.c readme.txt ae11/
+	@tar czvf ae11.tar.gz ae11
