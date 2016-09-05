@@ -88,6 +88,7 @@ int remove_no(struct lista *l, struct no *rno, int destroi(void *));
 #include <graphviz/cgraph.h>
 #define _XOPEN_SOURCE
 #include <string.h>
+#include <stdlib.h>
 
 typedef unsigned int uint;
 typedef long int lint;
@@ -106,7 +107,9 @@ typedef int bool;
 #define NULL			0
 #endif
 
-#define ERRO(fmt, ...)       (fprintf(stderr, (fmt), ## __VA_ARGS__))
+#define ERRO(fmt, ...)      	(fprintf(stderr, (fmt), ## __VA_ARGS__))
+#define UNUSED(x)				(void)(x)
+
 
 struct grafo {
 	uint 	nvertices;
@@ -126,6 +129,9 @@ typedef struct vertice* vertice;
 
 struct aresta {
 	char*	nome;
+	int		ponderado;
+	int		padding;
+	lint	peso;
 	vertice	origem;
 	vertice	destino;
 };
@@ -136,7 +142,13 @@ typedef struct aresta* aresta;
 //------------------------------------------------------------------------------
 // devolve o nome do grafo g
 char *nome_grafo(grafo g) {
-	return NULL;
+	return g->nome;
+}
+
+//------------------------------------------------------------------------------
+// devolve o nome do vertice v
+char *nome_vertice(vertice v) {
+	return v->nome;
 }
 
 //------------------------------------------------------------------------------
@@ -156,13 +168,13 @@ int direcionado(grafo g) {
 //------------------------------------------------------------------------------
 // devolve o número de vértices do grafo g
 unsigned int numero_vertices(grafo g) {
-	return 0;
+	return g->nvertices;
 }
 
 //------------------------------------------------------------------------------
 // devolve o número de arestas/arcos do grafo g
 unsigned int numero_arestas(grafo g) {
-	return 0;
+	return g->narestas;
 }
 
 //------------------------------------------------------------------------------
@@ -174,7 +186,35 @@ unsigned int numero_arestas(grafo g) {
 // devolve o grafo escrito
 //      ou NULL em caso de erro
 grafo escreve_grafo(FILE *output, grafo g) {
-	return NULL;
+    vertice v;
+    aresta  a;
+    char    ch;
+    no      n, na;
+
+    if( !g ) return NULL;
+    fprintf( output, "strict %sgraph \"%s\" {\n\n", \
+            direcionado(g) ? "di" : "", g->nome );
+
+    for( n=primeiro_no(g->vertices); n; n=proximo_no(n) )
+        fprintf(output, "    \"%s\"\n", ((vertice)conteudo(n))->nome);
+    fprintf( output, "\n" );
+
+    ch = direcionado(g) ? '>' : '-';
+    for( n=primeiro_no(g->vertices); n; n=proximo_no(n) ) {
+        v = (vertice)conteudo(n);
+        for( na=primeiro_no(v->vizinhos_esq); na; na=proximo_no(na) ) {
+            a = (aresta)conteudo(na);
+            fprintf(output, "    \"%s\" -%c \"%s\"",\
+                a->origem->nome, ch, a->destino->nome);
+
+            if ( g->ponderado )
+                fprintf( output, " [peso=%ld]", a->peso );
+            fprintf( output, "\n" );
+        }
+    }
+    fprintf( output, "}\n" );
+
+    return g;
 }
 
 //------------------------------------------------------------------------------
@@ -183,6 +223,8 @@ grafo escreve_grafo(FILE *output, grafo g) {
 // devolve 1 em caso de sucesso,
 //      ou 0 caso contrário
 int destroi_grafo(grafo g) {
+	UNUSED(g);
+
 	return 0;
 }
 
@@ -331,12 +373,18 @@ int remove_no(struct lista *l, struct no *rno, int destroi(void *)) {
 /*
  * Protótipos
  */
-void 	obtenha_arcos(Agraph_t*, Agnode_t*, grafo);
-void 	obtenha_arestas(Agraph_t*, Agnode_t*, grafo);
+void 	guarda_arcos(Agraph_t*, Agnode_t*, grafo);
+void 	guarda_arestas(Agraph_t*, Agnode_t*, grafo, vertice);
 void 	constroi_grafo(Agraph_t*, grafo);
 grafo	alloc_grafo(void);
 vertice alloc_vertice(const char*);
+aresta 	alloc_aresta(const char*);
+aresta 	dup_aresta(aresta);
 char* 	str_dup(const char*);
+vertice busca_vertice(const char*, const char*, lista, vertice*);
+int 	busca_aresta(vertice, vertice, vertice);
+vertice busca_v(const char*, lista);
+
 
 
 grafo alloc_grafo(void) {
@@ -344,15 +392,35 @@ grafo alloc_grafo(void) {
 	return g;
 }
 
-vertice alloc_vertice(const char* name) {
+vertice alloc_vertice(const char* nome) {
 	vertice v = (vertice)calloc(1, sizeof(struct vertice));
 	if( v ) {
-		v->nome = str_dup(name);
+		v->nome = str_dup(nome);
 		v->vizinhos_esq = constroi_lista();
 		v->vizinhos_dir = constroi_lista();
 	}
 
 	return v;
+}
+
+aresta alloc_aresta(const char* nome) {
+	UNUSED(nome);
+	aresta a = (aresta)calloc(1, sizeof(struct aresta));
+	if( a ) {
+//		a->nome = str_dup(nome);
+		a->peso = 0L;
+	}
+
+	return a;
+}
+
+aresta dup_aresta(aresta a) {
+	aresta p = (aresta)malloc(sizeof(struct aresta));
+	if( p ) {
+		memcpy(p, a, sizeof(struct aresta));
+	}
+
+	return p;
 }
 
 char* str_dup(const char* str) {
@@ -401,12 +469,86 @@ grafo le_grafo(FILE *input) {
     return g;
 }
 
-void obtenha_arcos(Agraph_t* ag, Agnode_t* v, grafo g) {
+int busca_aresta(vertice v, vertice calda, vertice cabeca) {
+	no n;
+	aresta a;
 
+	for( n=primeiro_no(v->vizinhos_esq); n; n=proximo_no(n) ) {
+		a = (aresta)conteudo(n);
+		if( (a->origem == calda && a->destino == cabeca) ||
+			(a->origem == cabeca && a->destino == calda ) )
+			return 1;
+	}
+
+	return 0;
 }
 
-void obtenha_arestas(Agraph_t* ag, Agnode_t* v, grafo g) {
+vertice busca_vertice(const char* nome_calda,
+		const char* nome_cabeca, lista l, vertice* cabeca) {
+	no n;
+	vertice v, calda;
 
+	calda = *cabeca = 0;
+	for( n=primeiro_no(l); n && (! calda || ! *cabeca); n=proximo_no(n) ) {
+		v = (vertice)conteudo(n);
+		if( strcmp(nome_calda, v->nome) == 0 )
+			calda = v;
+		else if( strcmp(nome_cabeca, v->nome) == 0 )
+			*cabeca = v;
+	}
+
+	return calda;
+}
+
+vertice busca_v(const char* nome, lista l) {
+	no n;
+	vertice v;
+
+	for( n=primeiro_no(l); n; n=proximo_no(n) ) {
+		v = (vertice)conteudo(n);
+		if( strcmp(nome, v->nome) == 0 )
+			return v;
+	}
+
+	return NULL;
+}
+
+void guarda_arcos(Agraph_t* ag, Agnode_t* av, grafo g) {
+	UNUSED(ag); UNUSED(av); UNUSED(g);
+}
+
+void guarda_arestas(Agraph_t* ag, Agnode_t* an, grafo g, vertice v) {
+	Agedge_t* age;
+    aresta	a;
+    vertice calda, cabeca;
+    char*	peso;
+    char	str_peso[5] = "peso";
+
+	for( age=agfstedge(ag, an); age; age=agnxtedge(ag, age, an) ) {
+		fprintf(stderr, "t=%s\n", agnameof(agtail(age)));
+		fprintf(stderr, "h=%s\n", agnameof(aghead(age)));
+		calda = busca_vertice(agnameof(agtail(age)),\
+				agnameof(aghead(age)), g->vertices, &cabeca);
+		if( busca_aresta(v, calda, cabeca) ) {
+			continue;
+		}
+
+		a = alloc_aresta(agnameof(agtail(age)));
+		peso = agget(age, str_peso);
+		if( peso ) {
+			a->peso = atol(peso);
+			a->ponderado = TRUE;
+		}
+
+		a->origem = calda;
+		a->destino = cabeca;
+		insere_lista(a, calda->vizinhos_esq);
+
+		a = dup_aresta(a);
+		a->origem = cabeca;
+		a->destino = calda;
+		insere_lista(a, cabeca->vizinhos_esq);
+	}
 }
 
 void constroi_grafo(Agraph_t* ag, grafo g) {
@@ -414,10 +556,14 @@ void constroi_grafo(Agraph_t* ag, grafo g) {
 	vertice		v;
 
 	for( n=agfstnode(ag); n; n=agnxtnode(ag, n) ) {
-		v = alloc_vertice(agnameof(v));
+		v = alloc_vertice(agnameof(n));
+		insere_lista(v, g->vertices);
+	}
+
+	for( n=agfstnode(ag); n; n=agnxtnode(ag, n) ) {
 		if( g->direcionado )
-			obtenha_arcos(ag, n, g);
+			guarda_arcos(ag, n, g);
 		else
-			obtenha_arestas(ag, n, g);
+			guarda_arestas( ag, n, g, busca_v(agnameof(n), g->vertices) );
 	}
 }
