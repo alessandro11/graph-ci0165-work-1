@@ -128,11 +128,9 @@ struct vertice {
 typedef struct vertice* vertice;
 
 struct aresta {
-	char*	nome;
 	int		ponderado;
 	int		padding;
 	lint	peso;
-	vertice	origem;
 	vertice	destino;
 };
 typedef struct aresta* aresta;
@@ -204,8 +202,7 @@ grafo escreve_grafo(FILE *output, grafo g) {
         v = (vertice)conteudo(n);
         for( na=primeiro_no(v->vizinhos_esq); na; na=proximo_no(na) ) {
             a = (aresta)conteudo(na);
-            fprintf(output, "    \"%s\" -%c \"%s\"",\
-                a->origem->nome, ch, a->destino->nome);
+            fprintf(output, "    \"%s\" -%c \"%s\"", v->nome, ch, a->destino->nome);
 
             if ( g->ponderado )
                 fprintf( output, " [peso=%ld]", a->peso );
@@ -381,11 +378,9 @@ vertice alloc_vertice(const char*);
 aresta 	alloc_aresta(const char*);
 aresta 	dup_aresta(aresta);
 char* 	str_dup(const char*);
-vertice busca_vertice(const char*, const char*, lista, vertice*);
-int 	busca_aresta(vertice, vertice, vertice);
 vertice busca_v(const char*, lista);
 
-void print_a(lista l);
+void print_a(vertice, lista);
 void print_v(grafo g);
 void print_v(grafo g) {
         no n;
@@ -397,12 +392,12 @@ void print_v(grafo g) {
                 v = conteudo(n);
                 printf("%s=%p\n", v->nome, v);
                 printf("\tV.:\n");
-                print_a(v->vizinhos_esq);
+                print_a(v, v->vizinhos_esq);
         }
         fflush(stdout);
 }
 
-void print_a(lista l) {
+void print_a(vertice v, lista l) {
     no n;
     struct aresta* a;
 
@@ -410,15 +405,11 @@ void print_a(lista l) {
     if( n ) {
         a = conteudo(n);
         printf("\taresta=%p\n", a);
-        printf( "\t(%s=%p, %s=%p)\n",\
-				a->origem->nome, a->origem,
-				(a->destino != 0) ? a->destino->nome : "NULL", a->destino );
+        printf( "\t(%s=%p, %s=%p)\n", v->nome, v, a->destino->nome, a->destino);
         for( n=proximo_no(n); n; n=proximo_no(n) ) {
             a = conteudo(n);
             printf("\taresta=%p\n", a);
-            printf( "\t(%s=%p, %s=%p)\n",\
-					a->origem->nome, a->origem,
-					(a->destino != 0) ? a->destino->nome : "NULL", a->destino );
+            printf( "\t(%s=%p, %s=%p)\n", v->nome, v, a->destino->nome, a->destino);
         }
     }
     fflush(stdout);
@@ -506,37 +497,6 @@ grafo le_grafo(FILE *input) {
     return g;
 }
 
-int busca_aresta(vertice v, vertice calda, vertice cabeca) {
-	no n;
-	aresta a;
-
-	for( n=primeiro_no(v->vizinhos_esq); n; n=proximo_no(n) ) {
-		a = (aresta)conteudo(n);
-		if( (a->origem == calda && a->destino == cabeca) ||
-			(a->origem == cabeca && a->destino == calda ) )
-			return 1;
-	}
-
-	return 0;
-}
-
-vertice busca_vertice(const char* nome_calda,
-		const char* nome_cabeca, lista l, vertice* cabeca) {
-	no n;
-	vertice v, calda;
-
-	calda = *cabeca = 0;
-	for( n=primeiro_no(l); n && (! calda || ! *cabeca); n=proximo_no(n) ) {
-		v = (vertice)conteudo(n);
-		if( strcmp(nome_calda, v->nome) == 0 )
-			calda = v;
-		else if( strcmp(nome_cabeca, v->nome) == 0 )
-			*cabeca = v;
-	}
-
-	return calda;
-}
-
 vertice busca_v(const char* nome, lista l) {
 	no n;
 	vertice v;
@@ -569,9 +529,10 @@ void guarda_arestas(Agraph_t* ag, Agnode_t* agn, grafo g, vertice v) {
 		fprintf(stderr, "t=%s\n", agnameof(tail));
 		fprintf(stderr, "h=%s\n\n", agnameof(head));
 
-		cabeca = v;
 		if( (Agnode_t*)head == agn )
 			cabeca = busca_v(agnameof(tail), g->vertices);
+		else
+			cabeca = busca_v(agnameof(head), g->vertices);
 
 		a = alloc_aresta(0);
 		peso = agget(age, str_peso);

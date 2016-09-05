@@ -37,3 +37,33 @@ void print_a(lista l) {
     fflush(stdout);
 }
 
+vertice busca_vertice(const char* nome_calda,
+		const char* nome_cabeca, lista l, vertice* cabeca) {
+	no n;
+	vertice v, calda;
+
+	calda = *cabeca = 0;
+	for( n=primeiro_no(l); n && (! calda || ! *cabeca); n=proximo_no(n) ) {
+		v = (vertice)conteudo(n);
+		if( strcmp(nome_calda, v->nome) == 0 )
+			calda = v;
+		else if( strcmp(nome_cabeca, v->nome) == 0 )
+			*cabeca = v;
+	}
+
+	return calda;
+}
+
+int busca_aresta(vertice v, vertice calda, vertice cabeca) {
+	no n;
+	aresta a;
+
+	for( n=primeiro_no(v->vizinhos_esq); n; n=proximo_no(n) ) {
+		a = (aresta)conteudo(n);
+		if( (a->origem == calda && a->destino == cabeca) ||
+			(a->origem == cabeca && a->destino == calda ) )
+			return 1;
+	}
+
+	return 0;
+}
