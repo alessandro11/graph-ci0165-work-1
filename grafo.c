@@ -385,7 +385,44 @@ vertice busca_vertice(const char*, const char*, lista, vertice*);
 int 	busca_aresta(vertice, vertice, vertice);
 vertice busca_v(const char*, lista);
 
+void print_a(lista l);
+void print_v(grafo g);
+void print_v(grafo g) {
+        no n;
+        struct vertice* v;
+        lista l = g->vertices;
 
+        printf("Grafo %s=%p\n", g->nome, g);
+        for( n=primeiro_no(l); n; n=proximo_no(n) ) {
+                v = conteudo(n);
+                printf("%s=%p\n", v->nome, v);
+                printf("\tV.:\n");
+                print_a(v->vizinhos_esq);
+        }
+        fflush(stdout);
+}
+
+void print_a(lista l) {
+    no n;
+    struct aresta* a;
+
+    n=primeiro_no(l);
+    if( n ) {
+        a = conteudo(n);
+        printf("\taresta=%p\n", a);
+        printf( "\t(%s=%p, %s=%p)\n",\
+				a->origem->nome, a->origem,
+				(a->destino != 0) ? a->destino->nome : "NULL", a->destino );
+        for( n=proximo_no(n); n; n=proximo_no(n) ) {
+            a = conteudo(n);
+            printf("\taresta=%p\n", a);
+            printf( "\t(%s=%p, %s=%p)\n",\
+					a->origem->nome, a->origem,
+					(a->destino != 0) ? a->destino->nome : "NULL", a->destino );
+        }
+    }
+    fflush(stdout);
+}
 
 grafo alloc_grafo(void) {
 	grafo g = (grafo)calloc(1, sizeof(struct grafo));
@@ -517,53 +554,54 @@ void guarda_arcos(Agraph_t* ag, Agnode_t* av, grafo g) {
 	UNUSED(ag); UNUSED(av); UNUSED(g);
 }
 
-void guarda_arestas(Agraph_t* ag, Agnode_t* an, grafo g, vertice v) {
-	Agedge_t* age;
-    aresta	a;
-    vertice calda, cabeca;
-    char*	peso;
-    char	str_peso[5] = "peso";
+void guarda_arestas(Agraph_t* ag, Agnode_t* agn, grafo g, vertice v) {
+	Agedge_t 	*age;
+    aresta		a;
+    vertice 	cabeca;
+    void		*tail, *head;
+    char*		peso;
+    char		str_peso[5] = "peso";
 
-	for( age=agfstedge(ag, an); age; age=agnxtedge(ag, age, an) ) {
-		fprintf(stderr, "t=%s\n", agnameof(agtail(age)));
-		fprintf(stderr, "h=%s\n", agnameof(aghead(age)));
-		calda = busca_vertice(agnameof(agtail(age)),\
-				agnameof(aghead(age)), g->vertices, &cabeca);
-		if( busca_aresta(v, calda, cabeca) ) {
-			continue;
-		}
+	for( age=agfstedge(ag, agn); age; age=agnxtedge(ag, age, agn) ) {
+		tail = agtail(age);
+		head = aghead(age);
+		fprintf(stderr, "v=%s\n", agnameof(agn));
+		fprintf(stderr, "t=%s\n", agnameof(tail));
+		fprintf(stderr, "h=%s\n\n", agnameof(head));
 
-		a = alloc_aresta(agnameof(agtail(age)));
+		cabeca = v;
+		if( (Agnode_t*)head == agn )
+			cabeca = busca_v(agnameof(tail), g->vertices);
+
+		a = alloc_aresta(0);
 		peso = agget(age, str_peso);
 		if( peso ) {
 			a->peso = atol(peso);
 			a->ponderado = TRUE;
 		}
 
-		a->origem = calda;
 		a->destino = cabeca;
-		insere_lista(a, calda->vizinhos_esq);
-
-		a = dup_aresta(a);
-		a->origem = cabeca;
-		a->destino = calda;
-		insere_lista(a, cabeca->vizinhos_esq);
+		insere_lista(a, v->vizinhos_esq);
 	}
 }
 
 void constroi_grafo(Agraph_t* ag, grafo g) {
-	Agnode_t*	n;
+	Agnode_t*	agn;
 	vertice		v;
 
-	for( n=agfstnode(ag); n; n=agnxtnode(ag, n) ) {
-		v = alloc_vertice(agnameof(n));
+	// Armazene a lista de vértices; deste modo podemos
+	// apenas apontar as arestas para os respectivos vértices.
+	for( agn=agfstnode(ag); agn; agn=agnxtnode(ag, agn) ) {
+		v = alloc_vertice(agnameof(agn));
 		insere_lista(v, g->vertices);
 	}
 
-	for( n=agfstnode(ag); n; n=agnxtnode(ag, n) ) {
+	for( agn=agfstnode(ag); agn; agn=agnxtnode(ag, agn) ) {
 		if( g->direcionado )
-			guarda_arcos(ag, n, g);
+			guarda_arcos(ag, agn, g);
 		else
-			guarda_arestas( ag, n, g, busca_v(agnameof(n), g->vertices) );
+			guarda_arestas( ag, agn, g, busca_v(agnameof(agn), g->vertices) );
+
+		print_v(g);
 	}
 }
