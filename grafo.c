@@ -135,6 +135,7 @@ struct aresta {
 };
 typedef struct aresta* aresta;
 
+int 	destroi_vertice(void*);
 
 
 //------------------------------------------------------------------------------
@@ -220,9 +221,23 @@ grafo escreve_grafo(FILE *output, grafo g) {
 // devolve 1 em caso de sucesso,
 //      ou 0 caso contrário
 int destroi_grafo(grafo g) {
-	UNUSED(g);
+	int ret = 1;
 
-	return 0;
+	free(g->nome);
+	ret = destroi_lista(g->vertices, destroi_vertice);
+	free(g);
+
+	return ret;
+}
+
+int destroi_vertice(void *v) {
+	int ret = 1;
+
+	free( ((vertice)v)->nome );
+	ret = destroi_lista( ((vertice)v)->vizinhos_esq, NULL );
+	free(v);
+
+	return ret;
 }
 
 //______________________________________________________________________________
@@ -375,10 +390,10 @@ void 	guarda_arestas(Agraph_t*, Agnode_t*, grafo, vertice);
 void 	constroi_grafo(Agraph_t*, grafo);
 grafo	alloc_grafo(void);
 vertice alloc_vertice(const char*);
-aresta 	alloc_aresta(const char*);
+aresta 	alloc_aresta(void);
 aresta 	dup_aresta(aresta);
 char* 	str_dup(const char*);
-vertice busca_v(const char*, lista);
+vertice busca_vertice(const char*, lista);
 
 void print_a(vertice, lista);
 void print_v(grafo g);
@@ -425,20 +440,18 @@ vertice alloc_vertice(const char* nome) {
 	if( v ) {
 		v->nome = str_dup(nome);
 		v->vizinhos_esq = constroi_lista();
-		v->vizinhos_dir = constroi_lista();
+//		v->vizinhos_dir = constroi_lista();
 	}
 
 	return v;
 }
 
-aresta alloc_aresta(const char* nome) {
-	UNUSED(nome);
+aresta alloc_aresta(void) {
 	aresta a = (aresta)calloc(1, sizeof(struct aresta));
-	if( a ) {
+//	if( a ) {
 //		a->nome = str_dup(nome);
-		a->peso = 0L;
-	}
-
+//		a->peso = 0L;
+//	}
 	return a;
 }
 
@@ -497,7 +510,7 @@ grafo le_grafo(FILE *input) {
     return g;
 }
 
-vertice busca_v(const char* nome, lista l) {
+vertice busca_vertice(const char* nome, lista l) {
 	no n;
 	vertice v;
 
@@ -530,11 +543,11 @@ void guarda_arestas(Agraph_t* ag, Agnode_t* agn, grafo g, vertice v) {
 		fprintf(stderr, "h=%s\n\n", agnameof(head));
 
 		if( (Agnode_t*)head == agn )
-			cabeca = busca_v(agnameof(tail), g->vertices);
+			cabeca = busca_vertice(agnameof(tail), g->vertices);
 		else
-			cabeca = busca_v(agnameof(head), g->vertices);
+			cabeca = busca_vertice(agnameof(head), g->vertices);
 
-		a = alloc_aresta(0);
+		a = alloc_aresta();
 		peso = agget(age, str_peso);
 		if( peso ) {
 			a->peso = atol(peso);
@@ -561,7 +574,7 @@ void constroi_grafo(Agraph_t* ag, grafo g) {
 		if( g->direcionado )
 			guarda_arcos(ag, agn, g);
 		else
-			guarda_arestas( ag, agn, g, busca_v(agnameof(agn), g->vertices) );
+			guarda_arestas( ag, agn, g, busca_vertice(agnameof(agn), g->vertices) );
 
 		print_v(g);
 	}
