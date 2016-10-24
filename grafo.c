@@ -136,7 +136,7 @@ struct aresta {
 typedef struct aresta* aresta;
 
 int 	destroi_vertice(void*);
-
+int 	destroi_aresta(void*);
 
 //------------------------------------------------------------------------------
 // devolve o nome do grafo g
@@ -400,6 +400,10 @@ aresta 	dup_aresta(aresta);
 char* 	str_dup(const char*);
 vertice busca_vertice(const char*, lista);
 
+/****
+ * Somente para debug.
+ */
+#ifdef DEBUG
 void print_a(vertice, lista);
 void print_v(grafo g);
 void print_v(grafo g) {
@@ -434,6 +438,7 @@ void print_a(vertice v, lista l) {
     }
     fflush(stdout);
 }
+#endif
 
 grafo alloc_grafo(void) {
 	grafo g = (grafo)calloc(1, sizeof(struct grafo));
@@ -580,7 +585,8 @@ void constroi_grafo(Agraph_t* ag, grafo g) {
 			guarda_arcos(ag, agn, g);
 		else
 			guarda_arestas( ag, agn, g, busca_vertice(agnameof(agn), g->vertices) );
-
+#ifdef DEBUG
 		print_v(g);
+#endif
 	}
 }
