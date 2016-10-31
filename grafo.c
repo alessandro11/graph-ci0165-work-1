@@ -403,9 +403,11 @@ vertice busca_vertice(const char*, lista);
 /****
  * Somente para debug.
  */
+#define DEBUG
 #ifdef DEBUG
 void print_a(vertice, lista);
 void print_v(grafo g);
+
 void print_v(grafo g) {
         no n;
         struct vertice* v;
@@ -548,9 +550,9 @@ void guarda_arestas(Agraph_t* ag, Agnode_t* agn, grafo g, vertice v) {
 	for( age=agfstedge(ag, agn); age; age=agnxtedge(ag, age, agn) ) {
 		tail = agtail(age);
 		head = aghead(age);
-		fprintf(stderr, "v=%s\n", agnameof(agn));
-		fprintf(stderr, "t=%s\n", agnameof(tail));
-		fprintf(stderr, "h=%s\n\n", agnameof(head));
+//		fprintf(stderr, "v=%s\n", agnameof(agn));
+//		fprintf(stderr, "t=%s\n", agnameof(tail));
+//		fprintf(stderr, "h=%s\n\n", agnameof(head));
 
 		if( (Agnode_t*)head == agn )
 			cabeca = busca_vertice(agnameof(tail), g->vertices);
@@ -590,3 +592,4 @@ void constroi_grafo(Agraph_t* ag, grafo g) {
 #endif
 	}
 }
+#undef DEBUG
