@@ -3,9 +3,13 @@
 
 //------------------------------------------------------------------------------
 
-int main(void) {
+int main(int argc, char* argv[]) {
+  (void)argc;
 
-  grafo g = le_grafo(stdin);
+  FILE *fp = NULL;
+  fp = fopen(argv[1], "r");
+  grafo g = le_grafo(fp);
+  fclose(fp);
 
   if ( !g )
 
